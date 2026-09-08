@@ -43,39 +43,39 @@ Unchanged: tokens/sec/$, P50/P99 latency, GPU utilization %, memory footprint, p
 
 ```
                 ┌─────────────────────────────────────────┐
-                │            Client / API Layer            │
-                │  (gRPC/HTTP endpoint, request queueing)  │
+                │            Client / API Layer           │
+                │  (gRPC/HTTP endpoint, request queueing) │
+                └───────────────────┬─────────────────────┘
+                                    │
+                ┌───────────────────▼───────────────────────┐
+                │           Scheduler / Batcher             │
+                │  - Continuous (in-flight) batching        │
+                │  - Request admission control              │
+                │  - Priority / SLA-aware ordering          │
                 └───────────────────┬───────────────────────┘
                                     │
                 ┌───────────────────▼───────────────────────┐
-                │           Scheduler / Batcher              │
-                │  - Continuous (in-flight) batching          │
-                │  - Request admission control                │
-                │  - Priority / SLA-aware ordering             │
-                └───────────────────┬───────────────────────┘
-                                    │
-                ┌───────────────────▼───────────────────────┐
-                │        Execution Engine (per GPU)          │
-                │  - Model graph executor                     │
-                │  - HIP Graph capture/replay for decode       │
-                │  - Kernel dispatch (fused attention, MLP)    │
+                │        Execution Engine (per GPU)         │
+                │  - Model graph executor                   │
+                │  - HIP Graph capture/replay for decode    │
+                │  - Kernel dispatch (fused attention, MLP) │
                 └───────────────────┬───────────────────────┘
                                     │
         ┌───────────────────────────┼───────────────────────────┐
         │                           │                           │
 ┌───────▼────────┐        ┌─────────▼─────────┐       ┌─────────▼─────────┐
-│  Memory Manager │        │  Kernel Library    │       │  Parallelism Layer │
-│ - Paged KV cache│        │ - Fused attention   │       │ - Tensor parallel  │
-│ - Cache eviction│        │   (HIP / Composable │       │ - Pipeline parallel│
-│ - Quant KV cache│        │    Kernel-based)     │       │ - RCCL collectives │
-└─────────────────┘        │ - Fused LayerNorm   │       └─────────────────────┘
-                            │ - Quant matmul      │
-                            └─────────────────────┘
+│  Memory Manager│        │  Kernel Library   │       │  Parallelism Layer│
+│ -Paged KV cache│        │ - Fused attention │       │ -Tensor parallel  │
+│ -Cache eviction│        │  (HIP / Composable│       │ -Pipeline parallel│
+│ -Quant KV cache│        │    Kernel-based)  │       │ -RCCL collectives │
+└────────────────┘        │ - Fused LayerNorm │       └───────────────────┘
+                          │ - Quant matmul    │
+                          └───────────────────┘
                                     │
                 ┌───────────────────▼───────────────────────┐
-                │        Profiling & Telemetry Layer         │
-                │  rocprof / ROCm Compute Profiler hooks      │
-                └─────────────────────────────────────────────┘
+                │        Profiling & Telemetry Layer        │
+                │  rocprof / ROCm Compute Profiler hooks    │
+                └───────────────────────────────────────────┘
 ```
 
 ### 2.2 Component Responsibilities & Platform Mapping

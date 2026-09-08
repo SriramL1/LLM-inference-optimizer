@@ -41,37 +41,37 @@ LLM inference is bottlenecked by three resources: **GPU compute (FLOPs)**, **mem
 
 ```
                 ┌─────────────────────────────────────────┐
-                │            Client / API Layer            │
-                │  (gRPC/HTTP endpoint, request queueing)  │
+                │            Client / API Layer           │
+                │  (gRPC/HTTP endpoint, request queueing) │
+                └───────────────────┬─────────────────────┘
+                                    │
+                ┌───────────────────▼───────────────────────┐
+                │           Scheduler / Batcher             │
+                │  - Continuous (in-flight) batching        │
+                │  - Request admission control              │
+                │  - Priority / SLA-aware ordering          │
                 └───────────────────┬───────────────────────┘
                                     │
                 ┌───────────────────▼───────────────────────┐
-                │           Scheduler / Batcher              │
-                │  - Continuous (in-flight) batching          │
-                │  - Request admission control                │
-                │  - Priority / SLA-aware ordering             │
-                └───────────────────┬───────────────────────┘
-                                    │
-                ┌───────────────────▼───────────────────────┐
-                │        Execution Engine (per GPU)          │
-                │  - Model graph executor                     │
-                │  - CUDA Graph capture/replay for decode      │
-                │  - Kernel dispatch (fused attention, MLP)    │
+                │        Execution Engine (per GPU)         │
+                │  - Model graph executor                   │
+                │  - CUDA Graph capture/replay for decode   │
+                │  - Kernel dispatch (fused attention, MLP) │
                 └───────────────────┬───────────────────────┘
                                     │
         ┌───────────────────────────┼───────────────────────────┐
         │                           │                           │
 ┌───────▼────────┐        ┌─────────▼─────────┐       ┌─────────▼─────────┐
-│  Memory Manager │        │  Kernel Library    │       │  Parallelism Layer │
-│ - Paged KV cache│        │ - Fused attention   │       │ - Tensor parallel  │
-│ - Cache eviction│        │ - Fused LayerNorm   │       │ - Pipeline parallel│
-│ - Quant KV cache│        │ - Quant matmul      │       │ - NCCL collectives │
-└─────────────────┘        └─────────────────────┘       └─────────────────────┘
+│  Memory Manager│        │  Kernel Library   │       │  Parallelism Layer│
+│ -Paged KV cache│        │ - Fused attention │       │ -Tensor parallel  │
+│ -Cache eviction│        │ - Fused LayerNorm │       │ -Pipeline parallel│
+│ -Quant KV cache│        │ - Quant matmul    │       │ -NCCL collectives │
+└────────────────┘        └───────────────────┘       └───────────────────┘
                                     │
                 ┌───────────────────▼───────────────────────┐
-                │        Profiling & Telemetry Layer         │
-                │  Nsight hooks, latency/throughput metrics   │
-                └─────────────────────────────────────────────┘
+                │        Profiling & Telemetry Layer        │
+                │  Nsight hooks, latency/throughput metrics │
+                └───────────────────────────────────────────┘
 ```
 
 ### 2.2 Component Responsibilities

@@ -41,7 +41,7 @@ def load_model(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=dtype,
+        dtype=dtype,
         attn_implementation="eager",
     ).to(device)
     model.eval()

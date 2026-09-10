@@ -2,3 +2,8 @@ torch>=2.2
 transformers>=4.44
 accelerate>=0.33
 pytest>=8.0
+
+# Triton (Stage 2+): platform-specific.
+# Linux / WSL2:      pip install triton
+# Windows (native):  pip install -U "triton-windows<3.7"
+# Not pinned here since the package name itself differs by platform.

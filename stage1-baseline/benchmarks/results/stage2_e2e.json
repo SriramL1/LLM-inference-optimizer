@@ -1,0 +1,46 @@
+[
+  {
+    "seq_len": 128,
+    "eager_ttft_ms_mean": 23.77072639465332,
+    "eager_ttft_ms_std": 0.19533776547604484,
+    "triton_ttft_ms_mean": 22.941791915893553,
+    "triton_ttft_ms_std": 0.34171614872235473,
+    "ttft_speedup": 1.0361320720630152,
+    "eager_decode_tok_s": 50.73002185848275,
+    "triton_decode_tok_s": 60.67196768957811,
+    "decode_speedup": 1.1959775585910364
+  },
+  {
+    "seq_len": 512,
+    "eager_ttft_ms_mean": 66.23863067626954,
+    "eager_ttft_ms_std": 0.42134273386931415,
+    "triton_ttft_ms_mean": 62.13917465209961,
+    "triton_ttft_ms_std": 0.6709781211218446,
+    "ttft_speedup": 1.06597216727003,
+    "eager_decode_tok_s": 46.32068900628706,
+    "triton_decode_tok_s": 59.42899202864383,
+    "decode_speedup": 1.2829902426662434
+  },
+  {
+    "seq_len": 1024,
+    "eager_ttft_ms_mean": 154.13311767578125,
+    "eager_ttft_ms_std": 0.3099669377329704,
+    "triton_ttft_ms_mean": 125.60814208984375,
+    "triton_ttft_ms_std": 1.1293277917457176,
+    "ttft_speedup": 1.2270949566751368,
+    "eager_decode_tok_s": 52.28149305935566,
+    "triton_decode_tok_s": 57.57514618028812,
+    "decode_speedup": 1.1012529063567968
+  },
+  {
+    "seq_len": 2048,
+    "eager_ttft_ms_mean": 384.0639282226563,
+    "eager_ttft_ms_std": 0.28934203418284127,
+    "triton_ttft_ms_mean": 262.2817443847656,
+    "triton_ttft_ms_std": 1.697645163790628,
+    "ttft_speedup": 1.4643181862449297,
+    "eager_decode_tok_s": 52.141316052791716,
+    "triton_decode_tok_s": 53.71463498599432,
+    "decode_speedup": 1.030174131615889
+  }
+]

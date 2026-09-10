@@ -19,17 +19,20 @@ def load_model(
     model_name: str = "Qwen/Qwen2.5-1.5B-Instruct",
     device: str = "cuda",
     dtype: torch.dtype = torch.float16,
+    attn_implementation: str = "eager",
 ) -> LoadedModel:
-    """Load a causal LM + tokenizer for baseline benchmarking.
+    """Load a causal LM + tokenizer for benchmarking.
 
     Defaults to a small (1.5B) modern-architecture model (RMSNorm, RoPE,
     grouped-query attention) so it comfortably fits an RTX 4070 (12GB) and
     is architecturally representative of what later optimization stages
     (fused attention, paged KV-cache, quantization) will target.
 
-    attn_implementation="eager" is deliberate: Stage 1 is the unoptimized
-    reference. PyTorch's SDPA / FlashAttention backends get introduced
-    later as an explicit optimization stage, not baked into the baseline.
+    attn_implementation defaults to "eager": Stage 1's unoptimized
+    reference. Pass "sdpa" for PyTorch's built-in fused attention, or the
+    name a custom implementation was registered under via
+    transformers.AttentionInterface.register(...) (see
+    src/engine/flash_attention_patch.py for Stage 2's Triton kernel).
     """
     if device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError(
@@ -42,7 +45,7 @@ def load_model(
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         dtype=dtype,
-        attn_implementation="eager",
+        attn_implementation=attn_implementation,
     ).to(device)
     model.eval()
 

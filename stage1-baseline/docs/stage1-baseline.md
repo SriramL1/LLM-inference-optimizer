@@ -76,3 +76,16 @@ transfer," not "which GPU is faster."
 - No PagedAttention-style memory management — the KV-cache uses whatever
   HuggingFace allocates by default (Stage 4 replaces this).
 - Single-GPU only (Stage 9 covers multi-GPU).
+
+## Retroactive note (found during Stage 3)
+
+Stage 3's debugging uncovered that `attn_implementation="eager"` produces
+NaN logits in this environment (torch 2.14+cu126, transformers 5.16.1,
+RTX 4060) -- see docs/stage3-fused-norm-activation.md for the full
+investigation. This benchmark only ever measured *speed* (tokens/sec,
+TTFT, memory), never checked output correctness, so it was never caught
+here. The timing numbers above remain valid -- NaN propagation doesn't
+change matmul wall-clock time -- but the actual generated text produced
+during this benchmarking was very likely semantic garbage throughout.
+Later stages (2b onward) use "sdpa" as the correctness reference for
+exactly this reason.

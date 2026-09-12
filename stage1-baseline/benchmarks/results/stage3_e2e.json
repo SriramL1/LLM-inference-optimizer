@@ -1,0 +1,42 @@
+{
+  "rmsnorm_patched": 57,
+  "mlp_patched": 28,
+  "results": [
+    {
+      "seq_len": 128,
+      "before_ttft_ms_mean": 24.073810958862303,
+      "after_ttft_ms_mean": 22.254688262939453,
+      "ttft_speedup": 1.081741099872076,
+      "before_decode_tok_s": 48.84891732979746,
+      "after_decode_tok_s": 49.918574350442874,
+      "decode_speedup": 1.0218972513438478
+    },
+    {
+      "seq_len": 512,
+      "before_ttft_ms_mean": 66.29999237060547,
+      "after_ttft_ms_mean": 63.3177604675293,
+      "ttft_speedup": 1.047099453313822,
+      "before_decode_tok_s": 51.95869331440689,
+      "after_decode_tok_s": 56.275683124011586,
+      "decode_speedup": 1.083085034172861
+    },
+    {
+      "seq_len": 1024,
+      "before_ttft_ms_mean": 154.25265808105468,
+      "after_ttft_ms_mean": 147.5941589355469,
+      "ttft_speedup": 1.0451135681352777,
+      "before_decode_tok_s": 44.31003577978202,
+      "after_decode_tok_s": 45.82542431406837,
+      "decode_speedup": 1.0341996684863388
+    },
+    {
+      "seq_len": 2048,
+      "before_ttft_ms_mean": 385.79542846679686,
+      "after_ttft_ms_mean": 368.826318359375,
+      "ttft_speedup": 1.046008403583845,
+      "before_decode_tok_s": 50.59313840104298,
+      "after_decode_tok_s": 55.37833096609813,
+      "decode_speedup": 1.0945818487701586
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "rmsnorm": [
+    {
+      "rows": 64,
+      "hidden_size": 1536,
+      "naive_ms_mean": 0.26653279960155485,
+      "naive_ms_std": 0.027228220212217907,
+      "triton_ms_mean": 0.03948159981518984,
+      "triton_ms_std": 0.004451525502386412,
+      "speedup": 6.750810525641646
+    },
+    {
+      "rows": 256,
+      "hidden_size": 1536,
+      "naive_ms_mean": 0.08568480089306832,
+      "naive_ms_std": 0.018680247051813887,
+      "triton_ms_mean": 0.04348000008612871,
+      "triton_ms_std": 0.002958060560510993,
+      "speedup": 1.970671589773158
+    },
+    {
+      "rows": 1024,
+      "hidden_size": 1536,
+      "naive_ms_mean": 0.09916960000991822,
+      "naive_ms_std": 0.010592141969353595,
+      "triton_ms_mean": 0.04430239964276552,
+      "triton_ms_std": 0.006997024572089232,
+      "speedup": 2.2384701688752062
+    },
+    {
+      "rows": 8192,
+      "hidden_size": 1536,
+      "naive_ms_mean": 1.877871996164322,
+      "naive_ms_std": 0.07379063902889912,
+      "triton_ms_mean": 0.2242624007165432,
+      "triton_ms_std": 0.012773377549159342,
+      "speedup": 8.37354808547627
+    },
+    {
+      "rows": 32768,
+      "hidden_size": 1536,
+      "naive_ms_mean": 7.359412908554077,
+      "naive_ms_std": 0.03685628626474669,
+      "triton_ms_mean": 0.8348624020814895,
+      "triton_ms_std": 0.02486459395344142,
+      "speedup": 8.815120779430833
+    }
+  ],
+  "swiglu": [
+    {
+      "rows": 64,
+      "intermediate_size": 8960,
+      "naive_ms_mean": 0.023646399937570096,
+      "naive_ms_std": 0.006989618752843284,
+      "triton_ms_mean": 0.034636800177395344,
+      "triton_ms_std": 0.008267744157241517,
+      "speedup": 0.6826958557506188
+    },
+    {
+      "rows": 256,
+      "intermediate_size": 8960,
+      "naive_ms_mean": 0.029151999950408937,
+      "naive_ms_std": 0.0032658160587557736,
+      "triton_ms_mean": 0.04935520002618432,
+      "triton_ms_std": 0.04403802011005697,
+      "speedup": 0.590657112825862
+    },
+    {
+      "rows": 1024,
+      "intermediate_size": 8960,
+      "naive_ms_mean": 0.36345920264720916,
+      "naive_ms_std": 0.008372352510275944,
+      "triton_ms_mean": 0.24263999983668327,
+      "triton_ms_std": 0.006541644014345211,
+      "speedup": 1.4979360488453972
+    },
+    {
+      "rows": 8192,
+      "intermediate_size": 8960,
+      "naive_ms_mean": 2.9554015755653382,
+      "naive_ms_std": 0.060806752433339786,
+      "triton_ms_mean": 1.7861743867397308,
+      "triton_ms_std": 0.030772158588392433,
+      "speedup": 1.6545985641188008
+    },
+    {
+      "rows": 32768,
+      "intermediate_size": 8960,
+      "naive_ms_mean": 11.75881609916687,
+      "naive_ms_std": 0.02556611531004401,
+      "triton_ms_mean": 7.04221122264862,
+      "triton_ms_std": 0.025631802815032405,
+      "speedup": 1.6697619153127736
+    }
+  ]
+}

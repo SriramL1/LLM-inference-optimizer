@@ -40,39 +40,38 @@ Each stage is implemented and benchmarked independently against the Stage 1 base
 
 Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 
-**Stage 1 (baseline, eager attention)** — decode scales near-linearly with batch size (memory-bandwidth-bound, as expected): ~47 tok/s at batch 1 → ~384 tok/s at batch 8. Full methodology in [`docs/stage1-baseline.md`](stage1-baseline/docs/stage1-baseline.md). *(Retroactive note: eager attention was later found to produce NaN logits in this environment — see Stage 3 below. Stage 1's timing numbers remain valid since NaN doesn't change matmul wall-clock time, but the generated text itself was likely garbage throughout, uncaught since this benchmark only ever measured speed.)*
+**Stage 1 (baseline, eager attention)** — decode scales near-linearly with batch size (memory-bandwidth-bound, as expected): ~47 tok/s at batch 1 → ~384 tok/s at batch 8. Full methodology in [`docs/stage1-baseline.md`](docs/stage1-baseline.md). *(Retroactive note: eager attention was later found to produce NaN logits in this environment — see Stage 3 below. Stage 1's timing numbers remain valid since NaN doesn't change matmul wall-clock time, but the generated text itself was likely garbage throughout, uncaught since this benchmark only ever measured speed.)*
 
 **Stage 2 (Triton fused attention)**:
 - Isolated kernel vs. PyTorch SDPA: matches within noise (0.98x–1.00x) at 2048–4096 tokens, ~14x faster than a naive unfused reference at 4096 tokens.
 - Wired into the real model via HuggingFace's `AttentionInterface`, with correctness validated by direct logit comparison and greedy-decoding agreement against SDPA on real prompts.
 - **End-to-end TTFT: 1.46x faster at 2048-token prompts**, scaling up from 1.04x at 128 tokens.
-- Full writeup, including three real integration bugs hit and fixed along the way, in [`docs/stage2-fused-attention.md`](stage1-baseline/docs/stage2-fused-attention.md) and [`docs/stage2b-integration.md`](stage1-baseline/docs/stage2b-integration.md).
+- Full writeup, including three real integration bugs hit and fixed along the way, in [`docs/stage2-fused-attention.md`](docs/stage2-fused-attention.md) and [`docs/stage2b-integration.md`](docs/stage2b-integration.md).
 
 **Stage 3 (Triton fused RMSNorm + SwiGLU activation)**:
 - Isolated kernels vs. naive PyTorch: RMSNorm up to 8.8x faster, SwiGLU up to 1.67x faster at scale (both are small, memory-bound ops — modest wins by design, unlike attention).
 - Integrated via **module replacement** rather than forward-method monkey-patching, after empirically proving the latter breaks in this environment independent of kernel correctness.
 - **End-to-end: 1.05x–1.09x speedup on both TTFT and decode** (unlike Stage 2, this stage's kernels run during decode too, not just prefill).
-- Along the way, root-caused a real, pre-existing bug: `attn_implementation="eager"` produces NaN logits in this torch/transformers/GPU combination, unrelated to anything built here — found via systematic bisection (kernel math → patching mechanism → module replacement → environment itself). Full writeup in [`docs/stage3-fused-norm-activation.md`](stage1-baseline/docs/stage3-fused-norm-activation.md).
+- Along the way, root-caused a real, pre-existing bug: `attn_implementation="eager"` produces NaN logits in this torch/transformers/GPU combination, unrelated to anything built here — found via systematic bisection (kernel math → patching mechanism → module replacement → environment itself). Full writeup in [`docs/stage3-fused-norm-activation.md`](docs/stage3-fused-norm-activation.md).
 
 ## Repository structure
 
 ```
 .
 ├── docs/
-│   ├── architecture-cuda.md          # Full SDLC architecture doc (CUDA target)
-│   └── architecture-rocm.md          # Full SDLC architecture doc (ROCm/HIP target)
-└── stage1-baseline/                  # Stages 1-3 (to be flattened to repo root in a later cleanup pass)
-    ├── docs/
-    │   ├── stage1-baseline.md        # Stage 1 methodology
-    │   ├── stage2-fused-attention.md # Stage 2 kernel methodology
-    │   ├── stage2b-integration.md    # Stage 2 end-to-end integration notes
-    │   └── stage3-fused-norm-activation.md  # Stage 3 methodology + eager-attention bug writeup
-    ├── src/
-    │   ├── kernels/                  # Custom Triton/CUDA kernels
-    │   └── engine/                   # Model loading, inference loop, attention/norm/MLP dispatch, profiling
-    ├── benchmarks/                   # Microbenchmarks + end-to-end throughput/latency tests
-    ├── tests/                        # Correctness + regression tests
-    └── requirements.txt
+│   ├── architecture-cuda.md              # Full SDLC architecture doc (CUDA target)
+│   ├── architecture-rocm.md              # Full SDLC architecture doc (ROCm/HIP target)
+│   ├── stage1-baseline.md                # Stage 1 methodology
+│   ├── stage2-fused-attention.md         # Stage 2 kernel methodology
+│   ├── stage2b-integration.md            # Stage 2 end-to-end integration notes
+│   └── stage3-fused-norm-activation.md   # Stage 3 methodology + eager-attention bug writeup
+├── src/
+│   ├── kernels/                          # Custom Triton/CUDA kernels
+│   └── engine/                           # Model loading, inference loop, attention/norm/MLP dispatch, profiling
+├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency tests
+├── tests/                                # Correctness + regression tests
+├── requirements.txt
+└── README.md
 ```
 
 ## Getting started
@@ -80,7 +79,6 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 Requires a CUDA-capable NVIDIA GPU (developed against an RTX 4060, 8GB) or an AMD GPU via ROCm (later stages).
 
 ```bash
-cd stage1-baseline
 pip install -r requirements.txt
 
 # CUDA-enabled torch (pip's default torch wheel is CPU-only on Windows):

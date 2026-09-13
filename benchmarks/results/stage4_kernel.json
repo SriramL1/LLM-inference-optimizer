@@ -1,0 +1,83 @@
+[
+  {
+    "batch": 1,
+    "context_len": 128,
+    "paged_ms_mean": 0.041622400656342505,
+    "paged_ms_std": 0.01833111362585778,
+    "sdpa_ms_mean": 0.03792640045285225,
+    "sdpa_ms_std": 0.0015129711106173223,
+    "paged_over_sdpa_ratio": 1.0974519110529588
+  },
+  {
+    "batch": 1,
+    "context_len": 512,
+    "paged_ms_mean": 0.06558079905807972,
+    "paged_ms_std": 0.0010511871904622702,
+    "sdpa_ms_mean": 0.04566879998892546,
+    "sdpa_ms_std": 0.0038638876981105974,
+    "paged_over_sdpa_ratio": 1.4360088085078402
+  },
+  {
+    "batch": 1,
+    "context_len": 2048,
+    "paged_ms_mean": 0.17920160070061683,
+    "paged_ms_std": 0.0013870798729708283,
+    "sdpa_ms_mean": 0.109579199552536,
+    "sdpa_ms_std": 0.00257415693869406,
+    "paged_over_sdpa_ratio": 1.6353614685303617
+  },
+  {
+    "batch": 8,
+    "context_len": 128,
+    "paged_ms_mean": 0.05239680036902428,
+    "paged_ms_std": 0.008625999557621174,
+    "sdpa_ms_mean": 0.051374399662017824,
+    "sdpa_ms_std": 0.0069113172979985,
+    "paged_over_sdpa_ratio": 1.0199009762397737
+  },
+  {
+    "batch": 8,
+    "context_len": 512,
+    "paged_ms_mean": 0.1150560013949871,
+    "paged_ms_std": 0.0033275720747710166,
+    "sdpa_ms_mean": 0.11835840120911598,
+    "sdpa_ms_std": 0.002423943557444335,
+    "paged_over_sdpa_ratio": 0.9720983066652431
+  },
+  {
+    "batch": 8,
+    "context_len": 2048,
+    "paged_ms_mean": 0.37056800425052644,
+    "paged_ms_std": 0.0018839833390467552,
+    "sdpa_ms_mean": 0.4283391982316971,
+    "sdpa_ms_std": 0.01057820368240489,
+    "paged_over_sdpa_ratio": 0.8651274638892118
+  },
+  {
+    "batch": 32,
+    "context_len": 128,
+    "paged_ms_mean": 0.10912959948182106,
+    "paged_ms_std": 0.0024280768416173834,
+    "sdpa_ms_mean": 0.13534559905529023,
+    "sdpa_ms_std": 0.0008289175254357018,
+    "paged_over_sdpa_ratio": 0.806303272832982
+  },
+  {
+    "batch": 32,
+    "context_len": 512,
+    "paged_ms_mean": 0.35235520303249357,
+    "paged_ms_std": 0.012915347457624784,
+    "sdpa_ms_mean": 0.43541600108146666,
+    "sdpa_ms_std": 0.009283351158901108,
+    "paged_over_sdpa_ratio": 0.8092380669459311
+  },
+  {
+    "batch": 32,
+    "context_len": 2048,
+    "paged_ms_mean": 1.3249056100845338,
+    "paged_ms_std": 0.012529085478209048,
+    "sdpa_ms_mean": 1.611004799604416,
+    "sdpa_ms_std": 0.012846033900085303,
+    "paged_over_sdpa_ratio": 0.8224094741430106
+  }
+]

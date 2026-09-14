@@ -27,7 +27,7 @@ CUDA development runs locally (RTX 4060). ROCm ports will run on AMD Instinct MI
 1. ✅ Baseline inference harness + profiling instrumentation
 2. ✅ Fused attention kernel (FlashAttention-style, Triton)
 3. ✅ Fused RMSNorm + SwiGLU activation kernels
-4. ⬜ Paged KV-cache manager
+4. ✅ Paged KV-cache manager + model integration
 5. ⬜ Continuous batching scheduler
 6. ⬜ CUDA Graphs / HIP Graphs for decode
 7. ⬜ Weight quantization (INT8/INT4)
@@ -54,6 +54,18 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 - **End-to-end: 1.05x–1.09x speedup on both TTFT and decode** (unlike Stage 2, this stage's kernels run during decode too, not just prefill).
 - Along the way, root-caused a real, pre-existing bug: `attn_implementation="eager"` produces NaN logits in this torch/transformers/GPU combination, unrelated to anything built here — found via systematic bisection (kernel math → patching mechanism → module replacement → environment itself). Full writeup in [`docs/stage3-fused-norm-activation.md`](docs/stage3-fused-norm-activation.md).
 
+**Stage 4 (paged KV-cache manager + paged attention decode kernel)**:
+- A page-based memory manager (`PagedKVCacheManager`) replacing one contiguous per-sequence KV-cache tensor with fixed-size pages allocated on demand — the same idea as OS virtual memory paging, and the core mechanism behind vLLM's PagedAttention.
+- A custom Triton decode kernel that gathers K/V from scattered pages via a block table, validated including **variable-length batches** — the actual scenario paging exists for.
+- **Memory: 89.1% reduction** vs. naive worst-case pre-allocation on a realistic mixed-length batch — the real payoff of this stage, not raw decode speed (which is roughly on par with a contiguous-cache baseline, as expected for gathered vs. flat memory access).
+- Full writeup in [`docs/stage4-paged-kv-cache.md`](docs/stage4-paged-kv-cache.md).
+
+**Stage 4b (wiring the paged cache into real generation)**:
+- `PagedEngine`: a manual per-layer forward pass driven by the paged cache, reusing HF's own tested Q/K/V projections and rotary embeddings to minimize the risk of a subtle RoPE bug — the biggest reimplementation in this project so far.
+- Correctness validated against real `model.generate()`, including a genuinely interesting false alarm: the first test run diverged after several correct tokens, which turned out to be caused by `generate()` silently applying a default `repetition_penalty` even in greedy mode — not a bug in `PagedEngine`, which matched a fair manual-loop reference perfectly.
+- Found and fixed a real performance bug via benchmarking (not just testing): a Python per-token loop in the cache-write path scaled with sequence length and made TTFT 4–5x slower than baseline; vectorizing it dropped TTFT from 332ms to 68ms at a 512-token prompt (baseline: 62ms).
+- Full writeup, including both findings with before/after numbers, in [`docs/stage4b-integration.md`](docs/stage4b-integration.md).
+
 ## Repository structure
 
 ```
@@ -64,11 +76,14 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 │   ├── stage1-baseline.md                # Stage 1 methodology
 │   ├── stage2-fused-attention.md         # Stage 2 kernel methodology
 │   ├── stage2b-integration.md            # Stage 2 end-to-end integration notes
-│   └── stage3-fused-norm-activation.md   # Stage 3 methodology + eager-attention bug writeup
+│   ├── stage3-fused-norm-activation.md   # Stage 3 methodology + eager-attention bug writeup
+│   ├── stage4-paged-kv-cache.md          # Stage 4 manager + kernel methodology
+│   └── stage4b-integration.md            # Stage 4b model integration + perf/test bug writeups
 ├── src/
 │   ├── kernels/                          # Custom Triton/CUDA kernels
-│   └── engine/                           # Model loading, inference loop, attention/norm/MLP dispatch, profiling
-├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency tests
+│   ├── kv_cache/                         # Paged KV-cache allocator + manager
+│   └── engine/                           # Model loading, inference loops, attention/norm/MLP dispatch, profiling
+├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency/memory tests
 ├── tests/                                # Correctness + regression tests
 ├── requirements.txt
 └── README.md
@@ -111,6 +126,16 @@ python benchmarks/run_stage3_kernels.py
 
 pytest tests/test_e2e_stage3.py -v
 python benchmarks/run_stage3_e2e.py
+```
+
+Run Stage 4/4b (kernel + manager correctness, isolated speed + memory benchmarks, end-to-end integration correctness + benchmark):
+```bash
+pytest tests/test_paged_attention_kernel.py -v
+python benchmarks/run_stage4_kernel.py
+python benchmarks/run_stage4_memory.py
+
+pytest tests/test_e2e_paged_engine.py -v
+python benchmarks/run_stage4b_e2e.py
 ```
 
 **Note:** correctness tests use `attn_implementation="sdpa"` as the reference, not `"eager"` — see Stage 3's writeup for why.

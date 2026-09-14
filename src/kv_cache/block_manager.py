@@ -147,12 +147,20 @@ class PagedKVCacheManager:
         v: torch.Tensor,
         positions: List[Tuple[int, int]],
     ) -> None:
-        """k, v: (num_new_tokens, num_kv_heads, head_dim). Writes each
-        token's K/V into the page slot reserved for it by reserve()."""
+        """k, v: (num_new_tokens, num_kv_heads, head_dim). Writes every
+        token's K/V into its reserved page slot with a single vectorized
+        (advanced-indexing) assignment, not a Python loop -- a per-token
+        Python loop here was the actual bottleneck found during Stage 4b
+        benchmarking: for a long prefill, it meant thousands of
+        individual tiny GPU writes (num_new_tokens x num_layers), whose
+        cost scaled with sequence length and dominated TTFT. A single
+        batched assignment does the same GPU-side work without paying
+        per-token Python dispatch/launch overhead for each one."""
         assert k.shape[0] == len(positions)
-        for i, (page_id, offset) in enumerate(positions):
-            self.k_cache[layer_idx][page_id, offset] = k[i]
-            self.v_cache[layer_idx][page_id, offset] = v[i]
+        page_ids = torch.tensor([p[0] for p in positions], dtype=torch.long, device=k.device)
+        offsets = torch.tensor([p[1] for p in positions], dtype=torch.long, device=k.device)
+        self.k_cache[layer_idx][page_ids, offsets] = k
+        self.v_cache[layer_idx][page_ids, offsets] = v
 
     def block_table_tensor(self, seq_id: int, max_blocks: int) -> torch.Tensor:
         """Returns a fixed-width (max_blocks,) int32 tensor of physical

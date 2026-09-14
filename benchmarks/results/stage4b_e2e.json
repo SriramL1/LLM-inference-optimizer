@@ -1,0 +1,30 @@
+[
+  {
+    "seq_len": 128,
+    "baseline_ttft_ms": 23.026784133911132,
+    "baseline_decode_tok_s": 57.012694726583184,
+    "paged_ttft_ms": 31.081753540039063,
+    "paged_decode_tok_s": 39.55773165894882,
+    "paged_memory": {
+      "used_pages": 10,
+      "free_pages": 4086,
+      "total_pages": 4096,
+      "used_bytes": 4587520,
+      "total_bytes": 1879048192
+    }
+  },
+  {
+    "seq_len": 512,
+    "baseline_ttft_ms": 62.18117065429688,
+    "baseline_decode_tok_s": 57.324872327356246,
+    "paged_ttft_ms": 67.82183685302735,
+    "paged_decode_tok_s": 39.42068138166661,
+    "paged_memory": {
+      "used_pages": 34,
+      "free_pages": 4062,
+      "total_pages": 4096,
+      "used_bytes": 15597568,
+      "total_bytes": 1879048192
+    }
+  }
+]

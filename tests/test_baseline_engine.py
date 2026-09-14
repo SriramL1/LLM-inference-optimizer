@@ -32,6 +32,14 @@ def test_manual_loop_matches_hf_generate():
         max_new_tokens=max_new_tokens,
         do_sample=False,
         num_beams=1,
+        repetition_penalty=1.0,  # neutralize -- see Stage 4b's test for why this matters:
+                                 # generate() applies generation_config's repetition_penalty
+                                 # even with do_sample=False, which a manual greedy loop
+                                 # doesn't implement. This test currently "works" without the
+                                 # fix only because attn_implementation="eager" produces NaN
+                                 # in this environment (both sides equally broken, masking the
+                                 # mismatch) -- fixing this properly rather than relying on
+                                 # that coincidence.
     )
     ref_new_tokens = ref_output[0, input_ids.shape[1]:].tolist()
 

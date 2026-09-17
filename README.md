@@ -28,7 +28,7 @@ CUDA development runs locally (RTX 4060). ROCm ports will run on AMD Instinct MI
 2. ✅ Fused attention kernel (FlashAttention-style, Triton)
 3. ✅ Fused RMSNorm + SwiGLU activation kernels
 4. ✅ Paged KV-cache manager + model integration
-5. ⬜ Continuous batching scheduler
+5. ✅ Continuous batching scheduler
 6. ⬜ CUDA Graphs / HIP Graphs for decode
 7. ⬜ Weight quantization (INT8/INT4)
 8. ⬜ Speculative decoding
@@ -66,6 +66,12 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 - Found and fixed a real performance bug via benchmarking (not just testing): a Python per-token loop in the cache-write path scaled with sequence length and made TTFT 4–5x slower than baseline; vectorizing it dropped TTFT from 332ms to 68ms at a 512-token prompt (baseline: 62ms).
 - Full writeup, including both findings with before/after numbers, in [`docs/stage4b-integration.md`](docs/stage4b-integration.md).
 
+**Stage 5 (continuous batching)**:
+- `ContinuousBatchingScheduler` + `ContinuousBatchingEngine`: dynamic admission (a new request joins the moment a slot frees up, rather than waiting for a whole static batch to finish), batching multiple sequences' decode steps — each potentially at a different context length — into a single kernel call per iteration. Needed almost no new kernel work, since Stage 4's paged attention kernel already supported variable-length batches.
+- Correctness validated against standalone per-sequence execution, including **staggered arrival** (a request added mid-stream, after others are already several decode steps in) — the actual scenario this stage exists for.
+- **Throughput: 2.48x speedup** (24.6 → 61.0 tok/s aggregate) processing 16 varying-length requests, versus running them one at a time.
+- Chunked prefill (mixing prefill into the same batched call as decode) explicitly scoped out as further real-systems work. Full writeup in [`docs/stage5-continuous-batching.md`](docs/stage5-continuous-batching.md).
+
 ## Repository structure
 
 ```
@@ -78,11 +84,12 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 │   ├── stage2b-integration.md            # Stage 2 end-to-end integration notes
 │   ├── stage3-fused-norm-activation.md   # Stage 3 methodology + eager-attention bug writeup
 │   ├── stage4-paged-kv-cache.md          # Stage 4 manager + kernel methodology
-│   └── stage4b-integration.md            # Stage 4b model integration + perf/test bug writeups
+│   ├── stage4b-integration.md            # Stage 4b model integration + perf/test bug writeups
+│   └── stage5-continuous-batching.md     # Stage 5 scheduler methodology
 ├── src/
 │   ├── kernels/                          # Custom Triton/CUDA kernels
 │   ├── kv_cache/                         # Paged KV-cache allocator + manager
-│   └── engine/                           # Model loading, inference loops, attention/norm/MLP dispatch, profiling
+│   └── engine/                           # Model loading, inference loops, scheduler, attention/norm/MLP dispatch, profiling
 ├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency/memory tests
 ├── tests/                                # Correctness + regression tests
 ├── requirements.txt
@@ -136,6 +143,12 @@ python benchmarks/run_stage4_memory.py
 
 pytest tests/test_e2e_paged_engine.py -v
 python benchmarks/run_stage4b_e2e.py
+```
+
+Run Stage 5 (correctness, including staggered arrival + throughput benchmark):
+```bash
+pytest tests/test_continuous_batching.py -v
+python benchmarks/run_stage5_e2e.py
 ```
 
 **Note:** correctness tests use `attn_implementation="sdpa"` as the reference, not `"eager"` — see Stage 3's writeup for why.

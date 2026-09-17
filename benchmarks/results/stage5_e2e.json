@@ -1,0 +1,12 @@
+{
+  "num_requests": 16,
+  "min_len": 32,
+  "max_len": 256,
+  "gen_len": 32,
+  "max_batch_size": 8,
+  "sequential_elapsed_s": 20.82861060000141,
+  "sequential_throughput_tok_s": 24.581572426149506,
+  "continuous_batching_elapsed_s": 8.393203100000392,
+  "continuous_batching_throughput_tok_s": 61.001740801432064,
+  "speedup": 2.4816045021000908
+}

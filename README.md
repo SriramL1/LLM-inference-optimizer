@@ -78,6 +78,38 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 - **Result: 1.22x steady-state decode speedup** (42.1 → 51.4 tok/s), with only 47ms one-time capture cost.
 - Deliberately not combined with Stage 5's dynamic batch sizes (a harder graph-capture problem — real systems bucket to a few fixed batch sizes). Full writeup, including the elimination trail, in [`docs/stage6-cuda-graphs.md`](docs/stage6-cuda-graphs.md).
 
+## Visual summary
+
+![End-to-end speedup by stage](docs/images/stage_speedups.png)
+
+Stage 4 isn't shown above — its headline result was memory efficiency (89.1% reduction), not speed, which doesn't belong on the same axis as the others. The mechanism behind Stages 4-6, in one picture: a sequence's logical token positions map through a block table to physical pages scattered across a shared pool, allocated only as needed, rather than one contiguous buffer reserved per sequence.
+
+```mermaid
+flowchart TB
+    subgraph SEQ["Sequence (logical positions)"]
+        direction LR
+        T0["tokens 0-15"]
+        T1["tokens 16-31"]
+        T2["tokens 32-47"]
+    end
+
+    BT["block table"]
+    SEQ --> BT
+
+    subgraph POOL["Physical page pool (shared across sequences)"]
+        direction LR
+        P0["page 0"]
+        P1["page 1"]
+        P2["page 2 (free)"]
+        P3["page 3"]
+        P4["page 4"]
+    end
+
+    BT -->|"tokens 0-15"| P0
+    BT -->|"tokens 32-47"| P1
+    BT -->|"tokens 16-31"| P4
+```
+
 ## Repository structure
 
 ```

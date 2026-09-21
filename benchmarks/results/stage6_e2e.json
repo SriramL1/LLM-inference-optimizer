@@ -1,0 +1,8 @@
+{
+  "seq_len": 128,
+  "gen_len": 64,
+  "ungraphed_tok_s": 42.07800026968807,
+  "graphed_capture_time_ms": 47.35979999531992,
+  "graphed_steady_state_tok_s": 51.419446811254176,
+  "speedup": 1.2220031009481087
+}

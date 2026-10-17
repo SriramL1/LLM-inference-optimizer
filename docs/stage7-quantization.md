@@ -136,7 +136,7 @@ the transformer layers' weights) is guaranteed by construction. The
 
 ## Known limitations (intentional, for now)
 
-- Kernel untuned; no autotune (see above). Costs prefill latency (TTFT 22 -> 44 ms at batch 1) and loses on small projection matrices.
+- Kernel untuned; no autotune (see above). Loses on small projection matrices and at prefill-sized M (~0.9x).
 - `lm_head` / embeddings stay fp16 (tied weights).
 - INT8 only; INT4 is Stage 7b.
 - Per-channel scale only -- no group-wise scales, which matter more at
@@ -144,9 +144,11 @@ the transformer layers' weights) is guaranteed by construction. The
 
 ## Results (RTX 4060, Qwen2.5-1.5B-Instruct)
 
-**Correctness:** all 55 tests passed (kernel vs. dequantized reference,
+**Correctness:** the Stage 7 test suite passed (reported as "all 55
+tests"; I did not see the per-file split, so I can't say how many were
+kernel vs. end-to-end): kernel vs. dequantized reference,
 quantization-error bounds, end-to-end logit agreement, `PagedEngine`
-composition on the quantized model).
+composition on the quantized model.
 
 **Memory:** transformer-layer weights 2499 MB -> 1252 MB (**2.00x
 smaller**, 196 layers quantized); peak memory 2995 -> 1748 MB at batch 1.
@@ -182,6 +184,18 @@ skinny shapes), which this stage deliberately did not do.
 | **Graphed path, batch 1 (decode tok/s)** | **68.4 +/- 0.5** | **104.3 +/- 0.2** | **1.52x** |
 | HF path, batch 1 TTFT | 22.1 ms | 43.8 ms | 0.50x |
 
+> **Correction after re-measurement.** The Stage 7b benchmark re-ran INT8
+> end to end with a fresh model load and did NOT reproduce this run's
+> plain-HF-path figures: INT8 was 50.2 vs 54.0 tok/s at batch 1 (0.93x, not
+> 0.61x), TTFT was 21.9 ms vs 24.0 ms (not 22 -> 44 ms), and at batch 8 it
+> was 0.87x of a fp16 baseline of 428.6 +/- 12.0 tok/s (this run's fp16
+> baseline of 302 +/- 111 was evidently disturbed, which is why the "1.21x"
+> was flagged as noise -- it was in fact not a win). The graphed result
+> reproduced (1.50x vs 1.52x). Where the two runs disagree, trust the
+> re-measurement: on the plain HF path INT8 is slightly *slower* than
+> fp16, and the bullets below about a 0.61x collapse and doubled TTFT
+> should be read as noise from this first run.
+
 How to read these honestly:
 
 - **The graphed number is the one to trust.** Its trial-to-trial spread
@@ -207,7 +221,7 @@ How to read these honestly:
 ### Takeaway
 
 Halving weight bytes pays off for decode when launch overhead is out of
-the way (graphed, 1.52x) and on the large MLP matrices (up to 2.4x
-isolated), costs prefill latency, and a naive untuned kernel is a net
-loss on the eager path at batch 1. Real systems get both by tuning per
+the way (graphed, ~1.5x, reproduced across two runs) and on the large MLP
+matrices (up to 2.4x isolated); an untuned kernel is slightly slower than
+fp16 on the plain eager path (0.87x-0.93x on re-measurement). Real systems get both by tuning per
 shape and using INT8 only where it wins.

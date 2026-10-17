@@ -30,7 +30,8 @@ CUDA development runs locally (RTX 4060). ROCm ports will run on AMD Instinct MI
 4. ✅ Paged KV-cache manager + model integration
 5. ✅ Continuous batching scheduler
 6. ✅ CUDA Graphs for decode
-7. ✅ Weight quantization — INT8 done; INT4 (Stage 7b) not started
+7. ✅ Weight quantization — INT8 done
+   - 7b. ✅ INT4 group-wise — done (3.9x memory saving; no speed gain over INT8)
 8. ⬜ Speculative decoding
 9. ⬜ Multi-GPU parallelism (tensor/pipeline)
 
@@ -80,10 +81,17 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 
 **Stage 7 (INT8 weight quantization)**:
 - Weight-only, per-output-channel symmetric INT8 (W8A16): weights stored as int8 with one scale per output row, activations stay fp16. A custom Triton kernel accumulates `x @ Wq^T` in fp32 and applies the scale once at the end instead of dequantizing every weight tile. Integrated via module replacement (196 linear layers), so it composes with `PagedEngine`, `ContinuousBatchingEngine` and `GraphedDecodeEngine` unchanged. Embeddings and `lm_head` stay fp16 (tied weights).
-- All 55 tests pass. Because fp16 and int8 aren't numerically identical, end-to-end accuracy is checked by logit cosine similarity and top-1 agreement rate rather than exact token equality.
+- The Stage 7 tests pass (reported as 55). Because fp16 and int8 aren't numerically identical, end-to-end accuracy is checked by logit cosine similarity and top-1 agreement rate rather than exact token equality.
 - **Memory: transformer-layer weights 2499 MB → 1252 MB (2.00x smaller); peak 2995 → 1748 MB.**
-- **Speed is mixed, and the mix is the finding:** with CUDA graphs (launch overhead removed), batch-1 decode goes **68.4 → 104.3 tok/s (1.52x)**. In isolation the kernel beats cuBLAS fp16 by 1.7x–2.4x on the large MLP matrices at decode-shaped M, but loses on small projections (0.6x–0.8x) and at prefill-sized M (~0.9x). On the plain HF path at batch 1, decode regressed (52.6 → 31.9 tok/s, high variance) and TTFT doubled (22 → 44 ms). The batch-8 HF-path gain (1.21x) is within noise and isn't claimed.
-- The kernel is deliberately untuned (fixed block sizes, no autotune, which is incompatible with CUDA graph capture); per-shape tuning is the obvious next step. INT4 is deferred to Stage 7b. Full tables and caveats in [`docs/stage7-quantization.md`](docs/stage7-quantization.md).
+- **Speed is mixed, and the mix is the finding:** with CUDA graphs (launch overhead removed), batch-1 decode goes **68.4 → 104.3 tok/s (1.52x)**, reproduced in a second run (69.5 → 104.2, 1.50x). In isolation the kernel beats cuBLAS fp16 by up to 2.4x on the large MLP matrices at decode-shaped M, but loses on small projections (0.6x–0.8x) and at prefill-sized M (~0.9x). On the plain HF path INT8 is slightly *slower* than fp16 (0.93x at batch 1, 0.87x at batch 8 on re-measurement); the first run's apparent 0.61x collapse and doubled TTFT did not reproduce and are treated as noise, as is its 1.21x batch-8 figure.
+- The kernel is deliberately untuned (fixed block sizes, no autotune, which is incompatible with CUDA graph capture); per-shape tuning is the obvious next step. INT4 followed as Stage 7b. Full tables and caveats in [`docs/stage7-quantization.md`](docs/stage7-quantization.md).
+
+**Stage 7b (INT4 group-wise weight quantization)**:
+- All 55 kernel/quantizer tests and the 3 end-to-end tests pass. Group-wise symmetric INT4 (group size 128, fp16 scales), two weights packed per byte in a layout that keeps activation loads contiguous. Plain round-to-nearest (no GPTQ/AWQ). Same module-replacement integration as Stage 7.
+- **Memory: transformer-layer weights 2499 MB → 645 MB (3.88x smaller); peak 2995 → 1179 MB at batch 1.**
+- **Accuracy cost is real:** logit cosine vs fp16 0.9378 and 80% top-1 agreement on a 60-token prompt (INT8: 0.9991 / 96.7%). My first accuracy threshold (cosine > 0.95) was a guess and failed; the bar was reset from this measurement, and the docs say so.
+- **No speedup over INT8:** graphed decode 102.0 vs INT8's 104.2 tok/s (fp16: 69.5), despite reading half the bytes. The INT4 kernel reaches only ~116 GB/s at best (INT8's reached ~235–255), so it isn't bandwidth-bound; it also loses to INT8 on the down projection (1.02x vs 2.03x at M=1) and is ~0.5x fp16 at prefill-sized M (batch-8 TTFT 196 vs 120 ms).
+- Takeaway: INT8 is the better speed/accuracy trade here; INT4 is for when memory is the constraint. Tuning the kernel and calibrated quantization are the obvious next steps, not done. Details in [`docs/stage7b-int4.md`](docs/stage7b-int4.md).
 
 ## Visual summary
 
@@ -132,11 +140,12 @@ flowchart TB
 │   ├── stage4b-integration.md            # Stage 4b model integration + perf/test bug writeups
 │   ├── stage5-continuous-batching.md     # Stage 5 scheduler methodology
 │   ├── stage6-cuda-graphs.md             # Stage 6 graph capture methodology + debugging trail
-│   └── stage7-quantization.md            # Stage 7 INT8 weight quantization methodology
+│   ├── stage7-quantization.md            # Stage 7 INT8 weight quantization methodology
+│   └── stage7b-int4.md                   # Stage 7b INT4 group-wise quantization
 ├── src/
-│   ├── kernels/                          # Custom Triton/CUDA kernels (incl. W8A16 matmul)
+│   ├── kernels/                          # Custom Triton/CUDA kernels (incl. W8A16 / W4A16 matmul)
 │   ├── kv_cache/                         # Paged KV-cache allocator + manager
-│   ├── quantization/                     # INT8 weight quantization (QuantizedLinearInt8, model-wide replacement)
+│   ├── quantization/                     # INT8 / INT4 weight quantization (model-wide module replacement)
 │   └── engine/                           # Model loading, inference loops, scheduler, attention/norm/MLP dispatch, profiling
 ├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency/memory tests
 ├── tests/                                # Correctness + regression tests
@@ -211,6 +220,14 @@ pytest tests/test_w8a16_kernel.py -v
 pytest tests/test_e2e_quantization.py -v
 python benchmarks/run_stage7_kernel.py
 python benchmarks/run_stage7_e2e.py
+```
+
+Run Stage 7b (INT4 kernel + quantization correctness first, then kernel benchmark, then the fp16/INT8/INT4 end-to-end benchmark):
+```bash
+pytest tests/test_w4a16_kernel.py -v
+pytest tests/test_e2e_int4.py -v -s
+python benchmarks/run_stage7b_kernel.py
+python benchmarks/run_stage7b_e2e.py
 ```
 
 **Note:** correctness tests use `attn_implementation="sdpa"` as the reference, not `"eager"` — see Stage 3's writeup for why.

@@ -1,0 +1,78 @@
+{
+  "phases": {
+    "fp16": {
+      "layer_weight_mb": 2499.2734375,
+      "hf": {
+        "1": {
+          "ttft_ms": 23.976012802124025,
+          "decode_tok_s": 53.99959375250061,
+          "peak_mb": 2995.2783203125
+        },
+        "8": {
+          "ttft_ms": 120.50943908691406,
+          "decode_tok_s": 428.5538710524007,
+          "peak_mb": 3281.16015625
+        }
+      },
+      "graphed_decode_tok_s": 69.53754813718656
+    },
+    "int8": {
+      "layer_weight_mb": 1252.234375,
+      "hf": {
+        "1": {
+          "ttft_ms": 21.92176628112793,
+          "decode_tok_s": 50.220486622407016,
+          "peak_mb": 1750.4892578125
+        },
+        "8": {
+          "ttft_ms": 126.32719421386719,
+          "decode_tok_s": 373.760226069774,
+          "peak_mb": 2036.37109375
+        }
+      },
+      "graphed_decode_tok_s": 104.16461427093316
+    },
+    "int4": {
+      "layer_weight_mb": 644.546875,
+      "hf": {
+        "1": {
+          "ttft_ms": 28.48903045654297,
+          "decode_tok_s": 45.983222422630654,
+          "peak_mb": 1178.9267578125
+        },
+        "8": {
+          "ttft_ms": 195.9322296142578,
+          "decode_tok_s": 374.79403597819834,
+          "peak_mb": 1464.80859375
+        }
+      },
+      "graphed_decode_tok_s": 102.04221015305362
+    }
+  },
+  "quality": {
+    "fp16": {
+      "cosine": 1.0,
+      "top1_agreement": 1.0
+    },
+    "int8": {
+      "cosine": 0.9990881681442261,
+      "top1_agreement": 0.9666666388511658
+    },
+    "int4": {
+      "cosine": 0.9378378987312317,
+      "top1_agreement": 0.800000011920929
+    }
+  },
+  "quantize_stats": {
+    "int8": {
+      "layers_quantized": 196,
+      "bytes_before": 2620506112,
+      "bytes_after": 1312890880
+    },
+    "int4": {
+      "layers_quantized": 196,
+      "bytes_before": 2620506112,
+      "bytes_after": 675684352
+    }
+  }
+}

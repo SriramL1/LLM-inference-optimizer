@@ -30,7 +30,7 @@ CUDA development runs locally (RTX 4060). ROCm ports will run on AMD Instinct MI
 4. ✅ Paged KV-cache manager + model integration
 5. ✅ Continuous batching scheduler
 6. ✅ CUDA Graphs for decode
-7. ⬜ Weight quantization (INT8/INT4)
+7. ✅ Weight quantization — INT8 done; INT4 (Stage 7b) not started
 8. ⬜ Speculative decoding
 9. ⬜ Multi-GPU parallelism (tensor/pipeline)
 
@@ -78,6 +78,13 @@ Hardware: NVIDIA RTX 4060 (8GB), Qwen2.5-1.5B-Instruct, fp16.
 - **Result: 1.22x steady-state decode speedup** (42.1 → 51.4 tok/s), with only 47ms one-time capture cost.
 - Deliberately not combined with Stage 5's dynamic batch sizes (a harder graph-capture problem — real systems bucket to a few fixed batch sizes). Full writeup, including the elimination trail, in [`docs/stage6-cuda-graphs.md`](docs/stage6-cuda-graphs.md).
 
+**Stage 7 (INT8 weight quantization)**:
+- Weight-only, per-output-channel symmetric INT8 (W8A16): weights stored as int8 with one scale per output row, activations stay fp16. A custom Triton kernel accumulates `x @ Wq^T` in fp32 and applies the scale once at the end instead of dequantizing every weight tile. Integrated via module replacement (196 linear layers), so it composes with `PagedEngine`, `ContinuousBatchingEngine` and `GraphedDecodeEngine` unchanged. Embeddings and `lm_head` stay fp16 (tied weights).
+- All 55 tests pass. Because fp16 and int8 aren't numerically identical, end-to-end accuracy is checked by logit cosine similarity and top-1 agreement rate rather than exact token equality.
+- **Memory: transformer-layer weights 2499 MB → 1252 MB (2.00x smaller); peak 2995 → 1748 MB.**
+- **Speed is mixed, and the mix is the finding:** with CUDA graphs (launch overhead removed), batch-1 decode goes **68.4 → 104.3 tok/s (1.52x)**. In isolation the kernel beats cuBLAS fp16 by 1.7x–2.4x on the large MLP matrices at decode-shaped M, but loses on small projections (0.6x–0.8x) and at prefill-sized M (~0.9x). On the plain HF path at batch 1, decode regressed (52.6 → 31.9 tok/s, high variance) and TTFT doubled (22 → 44 ms). The batch-8 HF-path gain (1.21x) is within noise and isn't claimed.
+- The kernel is deliberately untuned (fixed block sizes, no autotune, which is incompatible with CUDA graph capture); per-shape tuning is the obvious next step. INT4 is deferred to Stage 7b. Full tables and caveats in [`docs/stage7-quantization.md`](docs/stage7-quantization.md).
+
 ## Visual summary
 
 ![End-to-end speedup by stage](docs/images/stage_speedups.png)
@@ -124,10 +131,12 @@ flowchart TB
 │   ├── stage4-paged-kv-cache.md          # Stage 4 manager + kernel methodology
 │   ├── stage4b-integration.md            # Stage 4b model integration + perf/test bug writeups
 │   ├── stage5-continuous-batching.md     # Stage 5 scheduler methodology
-│   └── stage6-cuda-graphs.md             # Stage 6 graph capture methodology + debugging trail
+│   ├── stage6-cuda-graphs.md             # Stage 6 graph capture methodology + debugging trail
+│   └── stage7-quantization.md            # Stage 7 INT8 weight quantization methodology
 ├── src/
-│   ├── kernels/                          # Custom Triton/CUDA kernels
+│   ├── kernels/                          # Custom Triton/CUDA kernels (incl. W8A16 matmul)
 │   ├── kv_cache/                         # Paged KV-cache allocator + manager
+│   ├── quantization/                     # INT8 weight quantization (QuantizedLinearInt8, model-wide replacement)
 │   └── engine/                           # Model loading, inference loops, scheduler, attention/norm/MLP dispatch, profiling
 ├── benchmarks/                           # Microbenchmarks + end-to-end throughput/latency/memory tests
 ├── tests/                                # Correctness + regression tests
@@ -194,6 +203,14 @@ Run Stage 6 (graph correctness + decode throughput benchmark):
 ```bash
 pytest tests/test_graphed_decode.py -v
 python benchmarks/run_stage6_e2e.py
+```
+
+Run Stage 7 (INT8 kernel + quantization correctness first, then the kernel-vs-cuBLAS benchmark, then the end-to-end benchmark):
+```bash
+pytest tests/test_w8a16_kernel.py -v
+pytest tests/test_e2e_quantization.py -v
+python benchmarks/run_stage7_kernel.py
+python benchmarks/run_stage7_e2e.py
 ```
 
 **Note:** correctness tests use `attn_implementation="sdpa"` as the reference, not `"eager"` — see Stage 3's writeup for why.

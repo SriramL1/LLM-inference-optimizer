@@ -30,8 +30,7 @@ CUDA development runs locally (RTX 4060). ROCm ports will run on AMD Instinct MI
 4. ✅ Paged KV-cache manager + model integration
 5. ✅ Continuous batching scheduler
 6. ✅ CUDA Graphs for decode
-7. ✅ Weight quantization — INT8 done
-   - 7b. ✅ INT4 group-wise — done (3.9x memory saving; no speed gain over INT8)
+7. ✅ Weight quantization — INT8 done, and INT4 group-wise — done (3.9x memory saving; no speed gain over INT8)
 8. ⬜ Speculative decoding
 9. ⬜ Multi-GPU parallelism (tensor/pipeline)
 
